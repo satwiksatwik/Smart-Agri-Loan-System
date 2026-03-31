@@ -1,0 +1,71 @@
+/* Global Smooth Animation */
+* {
+  transition: all 0.25s ease-in-out;
+}
+
+/* Page fade animation */
+@keyframes fadeInPage {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeInPage 0.6s ease-in-out;
+}
+
+/* Slide Down (Navbar mobile) */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-down {
+  animation: slideDown 0.4s ease-in-out;
+}
+
+/* Success Pulse */
+@keyframes pulseSuccess {
+  0% { box-shadow: 0 0 0 0 rgba(34,197,94, 0.5); }
+  70% { box-shadow: 0 0 0 15px rgba(34,197,94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34,197,94, 0); }
+}
+
+.success-glow {
+  animation: pulseSuccess 1.5s infinite;
+}
+
+/* Button Hover Glow */
+button:hover {
+  transform: translateY(-2px);
+}
+
+/* Card Premium Look */
+.card-premium {
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+}
+
+/* Government Header Strip */
+.gov-strip {
+  background: linear-gradient(to right, #14532d, #166534);
+  color: white;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+/* Gradient Page Background */
+.page-bg {
+  background: linear-gradient(135deg, #ecfdf5, #fef9c3);
+}
