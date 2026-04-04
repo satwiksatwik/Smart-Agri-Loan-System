@@ -8,6 +8,7 @@ import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
 import AdminLoginPage from './pages/AdminLoginPage';
+import AdminRegisterPage from './pages/AdminRegisterPage';
 
 import Dashboard from './pages/Dashboard';
 
@@ -83,7 +84,7 @@ function App() {
             <Navbar />
             <Routes>
               {/* Public Routes (Farmer) */}
-              <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
+              <Route path="/" element={<LandingPage />} />
               <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
               <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
 
@@ -93,10 +94,11 @@ function App() {
               <Route path="/loan-status" element={<ProtectedRoute><LoanStatus /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/emi-calculator" element={<ProtectedRoute><EMICalculator /></ProtectedRoute>} />
-              <Route path="/repayment/:loanId" element={<ProtectedRoute><RepaymentTracking /></ProtectedRoute>} />
+              <Route path="/loan/:loanId" element={<ProtectedRoute><RepaymentTracking /></ProtectedRoute>} />
 
-              {/* Admin Login (separate from farmer login) */}
-              <Route path="/admin" element={<AdminPublicRoute><AdminLoginPage /></AdminPublicRoute>} />
+              {/* Admin Login & Register (separate from farmer login) */}
+              <Route path="/admin" element={<AdminLoginPage />} />
+              <Route path="/admin/register" element={<AdminRegisterPage />} />
 
               {/* Admin Dashboard */}
               <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />

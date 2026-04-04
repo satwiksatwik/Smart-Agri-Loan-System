@@ -21,6 +21,8 @@ const LoanApplication = () => {
     const [loading, setLoading] = useState(false);
     const [isFirstTime, setIsFirstTime] = useState(true);
     const [checkingLoans, setCheckingLoans] = useState(true);
+    const [maxLimitReached, setMaxLimitReached] = useState(false);
+    const [overdueWarning, setOverdueWarning] = useState("");
 
     const [formData, setFormData] = useState({
         fullName: "",
@@ -32,12 +34,20 @@ const LoanApplication = () => {
         existingLoans: "0",
         landSize: "",
         landLocation: "",
-        soilQuality: "",
+        soilHealthCardAvailable: "No",
+        ph: "",
+        nitrogen: "",
+        phosphorus: "",
+        potassium: "",
+        soilType: "",
+        cropYield: "",
+        fallbackIrrigation: "",
         irrigation: "",
         ownership: "Owned",
         loanAmount: "",
         purpose: "",
         loanType: "Short_Term",
+        tenure: "6",
         history: "First_Time",
     });
 
@@ -46,11 +56,12 @@ const LoanApplication = () => {
         incomeCertificate: null,
         aadhaar: null,
         pan: null,
-        photo: null
+        photo: null,
+        soilHealthCard: null
     });
 
     useEffect(() => {
-        const checkUserDocs = async () => {
+        const checkUserDocsAndData = async () => {
             try {
                 const { data } = await API.get("/auth/profile");
                 const userDocs = data.user.documents || {};
@@ -61,13 +72,26 @@ const LoanApplication = () => {
                     userDocs.pan &&
                     userDocs.photo;
                 setIsFirstTime(!hasdocs);
+
+                const loansRes = await API.get("/loan/my-loans");
+                const activeLoans = loansRes.data.filter(l => !["Completed", "Rejected", "COMPLETED", "REJECTED"].includes(l.status));
+                if (activeLoans.length >= 2) {
+                    setMaxLimitReached(true);
+                }
+
+                const alertsRes = await API.get("/emi/alerts");
+                const hasOverdue = alertsRes.data.some(a => a.type === "overdue");
+                if (hasOverdue) {
+                    setOverdueWarning("Please clear pending EMIs before applying for a new loan. Your upcoming application may be rejected due to poor financial standing.");
+                }
+
             } catch {
                 setIsFirstTime(true);
             } finally {
                 setCheckingLoans(false);
             }
         };
-        checkUserDocs();
+        checkUserDocsAndData();
     }, []);
 
     const handleChange = (e) => {
@@ -100,7 +124,7 @@ const LoanApplication = () => {
                     const landBonus = Math.min((Number(formData.landSize) || 0) * 10, 80);
                     score += landBonus;
                     if (formData.history === "Repeat") score += 50;
-                    const soilBonus = (Number(formData.soilQuality) || 0) * 5;
+                    const soilBonus = (getDerivedSoilQuality(formData) || 0) * 5;
                     score += soilBonus;
                     const ageNum = Number(formData.age) || 0;
                     if (ageNum >= 35 && ageNum <= 55) score += 20;
@@ -125,14 +149,14 @@ const LoanApplication = () => {
                     if (Number(formData.existingLoans) === 0) positiveReasons.push("No existing debt burden.");
                     if (Number(formData.landSize) > 5) positiveReasons.push("Substantial agricultural land assets.");
                     if (formData.history === "Repeat") positiveReasons.push("Excellent past repayment behavior.");
-                    if (Number(formData.soilQuality) > 8) positiveReasons.push("High-quality land productivity potential.");
+                    if (getDerivedSoilQuality(formData) > 8) positiveReasons.push("High-quality land productivity potential.");
                     if (positiveReasons.length === 0) positiveReasons.push("Stable overall financial profile.");
                 }
 
                 // Simulate ML prediction for Review (matches backend math)
                 const interestRate = isLow ? 12 : 8;
                 const approvedAmount = Math.round(Number(formData.loanAmount) * (score / 900));
-                const tenure = 12;
+                const tenure = Number(formData.tenure) || 12;
                 const totalMonthlyRate = (interestRate / 100) / 12;
                 const numerator = approvedAmount * totalMonthlyRate * Math.pow(1 + totalMonthlyRate, tenure);
                 const denominator = Math.pow(1 + totalMonthlyRate, tenure) - 1;
@@ -166,6 +190,23 @@ const LoanApplication = () => {
             });
 
             data.append('creditScore', reviewData.score);
+            data.append('soilQuality', getDerivedSoilQuality(formData));
+            
+            data.append('soilHealthCardAvailable', formData.soilHealthCardAvailable === "Yes");
+            if (formData.soilHealthCardAvailable === "Yes") {
+                data.append('soilDetails', JSON.stringify({
+                    ph: Number(formData.ph),
+                    nitrogen: Number(formData.nitrogen),
+                    phosphorus: Number(formData.phosphorus),
+                    potassium: Number(formData.potassium)
+                }));
+            } else {
+                data.append('fallbackSoilDetails', JSON.stringify({
+                    soilType: formData.soilType,
+                    cropYield: formData.cropYield,
+                    irrigation: formData.fallbackIrrigation === "Yes"
+                }));
+            }
 
             await API.post("/loan/apply", data, {
                 headers: { "Content-Type": "multipart/form-data" }
@@ -181,7 +222,24 @@ const LoanApplication = () => {
     };
 
     if (checkingLoans)
-        return <div className="text-center py-20">Checking...</div>;
+        return <div className="text-center py-20">Checking eligibility...</div>;
+
+    if (maxLimitReached) {
+        return (
+            <div className="page-bg min-h-[calc(100vh-64px)] py-12 px-4 flex justify-center items-center animate-fadeIn">
+                <div className="max-w-md w-full bg-white rounded-3xl p-8 text-center shadow-xl border border-red-100">
+                    <AlertCircle className="mx-auto text-red-500 mb-4" size={56} />
+                    <h2 className="text-2xl font-black text-gray-800 mb-2">Maximum Loan Limit Reached</h2>
+                    <p className="text-gray-600 mb-8 font-medium">
+                        You already have 2 active loans. Please repay existing loans before applying for a new loan.
+                    </p>
+                    <button onClick={() => navigate("/dashboard")} className="w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold transition shadow-md shadow-red-200">
+                        Return to Dashboard
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     const totalSteps = 6;
 
@@ -201,6 +259,14 @@ const LoanApplication = () => {
                         Government Smart Farmer Finance Portal 🌾
                     </p>
                 </div>
+
+                {/* OVERDUE WARNING */}
+                {overdueWarning && (
+                    <div className="bg-red-50 border-l-[6px] border-red-500 p-5 mb-8 rounded-r-2xl flex items-start gap-3 shadow-sm transition-all hover:bg-red-100">
+                        <AlertCircle className="text-red-600 shrink-0 mt-0.5" size={24} />
+                        <p className="text-red-900 font-bold">{overdueWarning}</p>
+                    </div>
+                )}
 
                 {/* STEP PROGRESS */}
                 <div className="flex justify-between mb-10 overflow-x-auto">
@@ -239,8 +305,44 @@ const LoanApplication = () => {
                     <Section icon={<Map />} title="Land & Farming Details">
                         <Input label="Land Size (Acres)" name="landSize" type="number" value={formData.landSize} onChange={handleChange} />
                         <Select label="Land Location" name="landLocation" value={formData.landLocation} options={["Near_City", "Village", "Remote"]} onChange={handleChange} />
-                        <Input label="Soil Quality (1-10)" name="soilQuality" type="number" value={formData.soilQuality} onChange={handleChange} />
-                        <Select label="Irrigation" name="irrigation" value={formData.irrigation} options={["drip", "canal", "borewell", "rainfed"]} onChange={handleChange} />
+                        
+                        <div className="md:col-span-2 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                            <Select label="Do you have a Soil Health Card?" name="soilHealthCardAvailable" value={formData.soilHealthCardAvailable} options={["Yes", "No"]} onChange={handleChange} />
+                            
+                            {formData.soilHealthCardAvailable === "Yes" && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                    <div>
+                                        <Input label="Soil pH (0-14)" name="ph" type="number" step="0.1" min="0" max="14" value={formData.ph} onChange={handleChange} />
+                                    </div>
+                                    <div>
+                                        <Input label="Nitrogen (kg/ha)" name="nitrogen" type="number" min="0" value={formData.nitrogen} onChange={handleChange} />
+                                        {formData.nitrogen && <div className="text-xs text-gray-500 mt-1">Classification: <span className="font-bold">{getNitrogenClass(formData.nitrogen)}</span></div>}
+                                    </div>
+                                    <div>
+                                        <Input label="Phosphorus (kg/ha)" name="phosphorus" type="number" min="0" value={formData.phosphorus} onChange={handleChange} />
+                                        {formData.phosphorus && <div className="text-xs text-gray-500 mt-1">Classification: <span className="font-bold">{getPhosphorusClass(formData.phosphorus)}</span></div>}
+                                    </div>
+                                    <div>
+                                        <Input label="Potassium (kg/ha)" name="potassium" type="number" min="0" value={formData.potassium} onChange={handleChange} />
+                                        {formData.potassium && <div className="text-xs text-gray-500 mt-1">Classification: <span className="font-bold">{getPotassiumClass(formData.potassium)}</span></div>}
+                                    </div>
+                                    <div className="md:col-span-2 mt-2">
+                                        <FileInput label="Upload Soil Health Card (Optional)" name="soilHealthCard" onChange={handleFileChange} file={files.soilHealthCard} />
+                                        <p className="text-xs text-gray-500 mt-1">Enter values exactly as mentioned in your Soil Health Card (kg/ha).</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {formData.soilHealthCardAvailable === "No" && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                    <Select label="Soil Type" name="soilType" value={formData.soilType} options={["Sandy", "Clay", "Loamy", "Black_Soil"]} onChange={handleChange} />
+                                    <Select label="Crop Yield (Last Season)" name="cropYield" value={formData.cropYield} options={["Low", "Medium", "High"]} onChange={handleChange} />
+                                    <Select label="Irrigation Availability" name="fallbackIrrigation" value={formData.fallbackIrrigation} options={["Yes", "No"]} onChange={handleChange} />
+                                </div>
+                            )}
+                        </div>
+
+                        <Select label="Irrigation (Main Facility)" name="irrigation" value={formData.irrigation} options={["drip", "canal", "borewell", "rainfed"]} onChange={handleChange} />
                         <Select label="Ownership" name="ownership" value={formData.ownership} options={["Owned", "Leased"]} onChange={handleChange} />
                     </Section>
                 )}
@@ -250,7 +352,12 @@ const LoanApplication = () => {
                     <Section icon={<Tractor />} title="Loan Details">
                         <Input label="Requested Amount" name="loanAmount" type="number" value={formData.loanAmount} onChange={handleChange} />
                         <Select label="Purpose" name="purpose" value={formData.purpose} options={["Equipment_Purchase", "Seeds", "Irrigation", "Fertilizer", "Other"]} onChange={handleChange} />
-                        <Select label="Loan Type" name="loanType" value={formData.loanType} options={["Short_Term", "Long_Term"]} onChange={handleChange} />
+                        <Select label="Loan Type" name="loanType" value={formData.loanType} options={["Short_Term", "Long_Term"]} onChange={(e) => { handleChange(e); setFormData(prev => ({ ...prev, tenure: e.target.value === "Short_Term" ? "6" : "24" })); }} />
+                        <Select label="EMI Tenure (Months)" name="tenure" value={formData.tenure}
+                            options={formData.loanType === "Short_Term"
+                                ? ["3", "6", "9", "12"]
+                                : ["12", "18", "24", "36", "48", "60"]
+                            } onChange={handleChange} />
                         <Select label="Loan History" name="history" value={formData.history} options={["First_Time", "Repeat"]} onChange={handleChange} />
                     </Section>
                 )}
@@ -458,5 +565,39 @@ const FileInput = ({ label, name, onChange, file }) => (
         </div>
     </div>
 );
+const getNitrogenClass = (val) => {
+    const n = Number(val);
+    if (n < 280) return "Low";
+    if (n <= 560) return "Medium";
+    return "High";
+};
+
+const getPhosphorusClass = (val) => {
+    const p = Number(val);
+    if (p < 10) return "Low";
+    if (p <= 25) return "Medium";
+    return "High";
+};
+
+const getPotassiumClass = (val) => {
+    const k = Number(val);
+    if (k < 110) return "Low";
+    if (k <= 280) return "Medium";
+    return "High";
+};
+
+const getDerivedSoilQuality = (data) => {
+    if (data.soilHealthCardAvailable === "Yes") {
+        const mapToScore = { "High": 3, "Medium": 2, "Low": 1 };
+        const nScore = mapToScore[getNitrogenClass(data.nitrogen)] || 1;
+        const pScore = mapToScore[getPhosphorusClass(data.phosphorus)] || 1;
+        const kScore = mapToScore[getPotassiumClass(data.potassium)] || 1;
+        return nScore + pScore + kScore;
+    } else {
+        if (data.cropYield === "High") return 8;
+        if (data.cropYield === "Medium") return 5;
+        return 3;
+    }
+};
 
 export default LoanApplication;

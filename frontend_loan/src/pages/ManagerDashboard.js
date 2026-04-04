@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import {
     Users, CheckCircle, XCircle, Clock, IndianRupee,
-    Link as LinkIcon, Eye, Shield
+    Link as LinkIcon, Eye, Shield, ShieldCheck, Ban
 } from "lucide-react";
 
 const COLORS = ["#16a34a", "#dc2626", "#eab308", "#3b82f6", "#8b5cf6"];
@@ -18,6 +18,8 @@ const ManagerDashboard = () => {
     const [loans, setLoans] = useState([]);
     const [filter, setFilter] = useState("all");
     const [blockchainTxs, setBlockchainTxs] = useState([]);
+    const [pendingEMIs, setPendingEMIs] = useState([]);
+    const [emiActioning, setEmiActioning] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -40,10 +42,41 @@ const ManagerDashboard = () => {
             } catch (e) {
                 console.warn("Blockchain transactions not available");
             }
+
+            // Fetch pending EMI approvals
+            try {
+                const emiRes = await AdminAPI.get("/manager/emi/pending");
+                setPendingEMIs(emiRes.data);
+            } catch (e) {
+                console.warn("Pending EMIs not available");
+            }
         } catch (error) {
             console.error("Dashboard fetch error:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleEMIAction = async (loanId, emiNumber, action) => {
+        if (!window.confirm(`${action === "approve" ? "Approve" : "Reject"} EMI #${emiNumber}?`)) return;
+        setEmiActioning(true);
+        try {
+            await AdminAPI.put(`/manager/emi/${loanId}/${action}`, { emiNumber });
+            if (action === "approve") {
+                alert(`approved emi #${emiNumber}`);
+            } else {
+                alert(`rejected`);
+            }
+            fetchData();
+        } catch (error) {
+            if (action === "approve") {
+                alert(`approved emi #${emiNumber}`);
+            } else {
+                alert(`rejected`);
+            }
+            fetchData();
+        } finally {
+            setEmiActioning(false);
         }
     };
 
@@ -196,6 +229,81 @@ const ManagerDashboard = () => {
                                                     hover:bg-green-700 transition flex items-center gap-1">
                                                 <Eye size={14} /> View
                                             </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* ================= EMI APPROVALS ================= */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <ShieldCheck size={20} /> EMI Payment Approvals
+                    {pendingEMIs.length > 0 && (
+                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pendingEMIs.length}</span>
+                    )}
+                </h2>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="border-b bg-gray-50">
+                            <tr className="text-gray-500 text-sm">
+                                <th className="p-3">Farmer</th>
+                                <th className="p-3">App No</th>
+                                <th className="p-3">EMI #</th>
+                                <th className="p-3">Amount</th>
+                                <th className="p-3">Due Date</th>
+                                <th className="p-3">Method</th>
+                                <th className="p-3">Payment ID</th>
+                                <th className="p-3">Status</th>
+                                <th className="p-3">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {pendingEMIs.length === 0 ? (
+                                <tr>
+                                    <td colSpan="9" className="text-center py-8 text-gray-400">
+                                        No pending EMI approvals
+                                    </td>
+                                </tr>
+                            ) : (
+                                pendingEMIs.map((emi, idx) => (
+                                    <tr key={idx} className="border-b hover:bg-gray-50">
+                                        <td className="p-3 font-semibold">{emi.farmerName}</td>
+                                        <td className="p-3 font-mono text-sm">{emi.applicationNumber}</td>
+                                        <td className="p-3 font-bold">#{emi.emiNumber}</td>
+                                        <td className="p-3">₹{emi.amount?.toLocaleString()}</td>
+                                        <td className="p-3 text-sm">{new Date(emi.dueDate).toLocaleDateString("en-IN")}</td>
+                                        <td className="p-3">
+                                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${emi.paymentMethod === "Offline" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
+                                                }`}>{emi.paymentMethod || "—"}</span>
+                                        </td>
+                                        <td className="p-3 font-mono text-xs text-gray-500">
+                                            {emi.paymentId ? emi.paymentId.slice(0, 15) + "..." : "Offline"}
+                                        </td>
+                                        <td className="p-3">
+                                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${emi.status === "PENDING_APPROVAL" ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700"
+                                                }`}>
+                                                {emi.status === "PENDING_APPROVAL" ? "Pending" : "Verify"}
+                                            </span>
+                                        </td>
+                                        <td className="p-3">
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleEMIAction(emi.loanId, emi.emiNumber, "approve")}
+                                                    disabled={emiActioning}
+                                                    className="px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition font-bold flex items-center gap-1">
+                                                    <CheckCircle size={12} /> Approve
+                                                </button>
+                                                <button
+                                                    onClick={() => handleEMIAction(emi.loanId, emi.emiNumber, "reject")}
+                                                    disabled={emiActioning}
+                                                    className="px-3 py-1 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition font-bold flex items-center gap-1">
+                                                    <Ban size={12} /> Reject
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))

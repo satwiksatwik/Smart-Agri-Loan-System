@@ -144,6 +144,7 @@ const ManagerLoanDetail = () => {
         aadhaar: "Aadhaar Card",
         pan: "PAN Card",
         photo: "Passport Photo",
+        soilHealthCard: "Soil Health Card",
     };
 
     return (
@@ -244,8 +245,8 @@ const ManagerLoanDetail = () => {
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <FileText size={18} /> Document Verification
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    {["adangal", "incomeCertificate", "aadhaar", "pan", "photo"].map(docType => {
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                    {["adangal", "incomeCertificate", "aadhaar", "pan", "photo", "soilHealthCard"].map(docType => {
                         const filename = loan.documentPaths?.[docType];
                         const hasDoc = !!filename;
                         return (

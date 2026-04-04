@@ -1,192 +1,291 @@
 import React, { useEffect, useState } from "react";
 import API from "../api";
+import { Link, useNavigate } from "react-router-dom";
 import {
-    CheckCircle,
-    XCircle,
-    IndianRupee,
-    FileText,
-    Award,
-    AlertTriangle,
-    Lightbulb,
-    ArrowLeft,
-    Hash,
-    Clock,
-    Link as LinkIcon
+    IndianRupee, AlertTriangle, CheckCircle, Clock,
+    ArrowLeft, Hash, CreditCard, PieChart, Activity,
+    ShieldCheck, Search, Download
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 
 const LoanStatus = () => {
-    const [loan, setLoan] = useState(null);
     const navigate = useNavigate();
+    const [loans, setLoans] = useState([]);
+    const [schedules, setSchedules] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState("");
+    const [filter, setFilter] = useState("All"); // All, Active, Completed, Pending
+
+    const [stats, setStats] = useState({
+        totalActive: 0,
+        dueThisMonth: 0,
+        overallAmount: 0
+    });
 
     useEffect(() => {
-        const fetchLatestLoan = async () => {
+        const fetchAllData = async () => {
             try {
-                const { data } = await API.get("/loan/my-loans");
-                if (data.length > 0) setLoan(data[0]);
+                const { data: userLoans } = await API.get("/loan/my-loans");
+                userLoans.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                setLoans(userLoans);
+
+                const activeLoansCount = userLoans.filter(l => !["Completed", "COMPLETED", "Rejected", "REJECTED"].includes(l.status)).length;
+                let activeSum = activeLoansCount;
+                
+                let dueThisMonthSum = 0;
+                let overallSum = 0;
+                const newSchedules = {};
+
+                const approvedLoans = userLoans.filter(l => l.status === "Approved");
+
+                await Promise.all(
+                    approvedLoans.map(async (loan) => {
+                        try {
+                            const { data: schedData } = await API.get(`/emi/schedule/${loan._id}`);
+                            newSchedules[loan._id] = schedData;
+                            
+                            overallSum += (schedData.outstanding || 0);
+
+                            const nextEmi = schedData.schedule.find(r => r.status === "NOT_PAID");
+                            if (nextEmi) {
+                                dueThisMonthSum += (nextEmi.emi || loan.emiAmount || 0);
+                            }
+                        } catch (err) {
+                            console.warn("Failed fetching schedule for", loan._id);
+                        }
+                    })
+                );
+
+                setSchedules(newSchedules);
+                setStats({
+                    totalActive: activeSum,
+                    dueThisMonth: dueThisMonthSum,
+                    overallAmount: overallSum
+                });
             } catch (error) {
-                console.error("Error fetching loan:", error);
+                console.error("Failed to fetch loans", error);
+            } finally {
+                setLoading(false);
             }
         };
-        fetchLatestLoan();
+
+        fetchAllData();
     }, []);
 
-    if (!loan) {
-        return (
-            <div className="text-center py-20 text-gray-600">
-                No loan data found.
-            </div>
-        );
-    }
-
-    const isApproved = loan.status === "Approved";
-    const isPending = loan.status === "Pending";
-    const isRejected = loan.status === "Rejected";
-
-    const getScoreColor = (score) => {
-        if (score >= 750) return "bg-green-500 text-white";
-        if (score >= 650) return "bg-yellow-400 text-black";
-        return "bg-red-500 text-white";
+    const getLoanHealth = (scheduleData) => {
+        if (!scheduleData) return { label: "Unknown", color: "text-gray-500", bg: "bg-gray-100" };
+        const hasOverdue = scheduleData.schedule.some(r => r.isOverdue);
+        if (hasOverdue) return { label: "Risky", color: "text-red-700", bg: "bg-red-100" };
+        
+        // Moderate if paid late manually (checking paidDate > dueDate ideally, we'll approximate)
+        // For now, if no overdue but some are PAID we assume Good. 
+        return { label: "Good", color: "text-green-700", bg: "bg-green-100" };
     };
 
-    const repaymentTips = [
-        "Pay existing loans on time.",
-        "Avoid taking multiple loans simultaneously.",
-        "Increase stable agricultural income.",
-        "Improve irrigation and crop stability.",
-        "Maintain proper land ownership records."
-    ];
+    const getPriority = (scheduleData) => {
+        if (!scheduleData) return null;
+        const now = new Date().getTime();
+        let prio = { label: "On Track", icon: <CheckCircle size={14} />, color: "text-green-700", bg: "bg-green-100" };
+        
+        scheduleData.schedule.forEach(rep => {
+            if (rep.status !== "PAID" && rep.dueDate) {
+                const dd = new Date(rep.dueDate).getTime();
+                if (dd < now || rep.isOverdue) prio = { label: "Overdue", icon: <AlertTriangle size={14} />, color: "text-red-700", bg: "bg-red-100" };
+                else if (prio.label !== "Overdue" && dd - now <= 7 * 24 * 60 * 60 * 1000) {
+                    prio = { label: "Due Soon", icon: <Clock size={14} />, color: "text-yellow-700", bg: "bg-yellow-100" };
+                }
+            }
+        });
+        return prio;
+    };
 
-    const generatePDF = () => {
+    const downloadLoanPDF = (loan) => {
         const doc = new jsPDF();
-
-        doc.setFontSize(18);
-        doc.text("Government Agricultural Credit Scheme", 20, 20);
-
+        doc.setFontSize(22);
+        doc.text("Smart Agri Loan System - Application Details", 20, 20);
+        
         doc.setFontSize(12);
-        doc.text(`Application No: ${loan.applicationNumber}`, 20, 35);
-
-        doc.text(`Farmer Name: ${loan.fullName || "Applicant"}`, 20, 50);
-        doc.text(`Credit Score: ${loan.creditScore}`, 20, 60);
-        doc.text(`Status: ${loan.status}`, 20, 70);
-        doc.text(`Approved Amount: Rs ${Number(loan.approvedAmount || loan.loanAmount).toLocaleString()}`, 20, 80);
-        doc.text(`Interest Rate: ${loan.interestRate || loan.suggestedInterestRate || '8'}%`, 20, 90);
-        doc.text(`Tenure: ${loan.tenure || 12} months`, 20, 100);
-        doc.text(`Monthly EMI: Rs ${Number(loan.emiAmount || 0).toLocaleString()}`, 20, 110);
-        doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 120);
-
-        if (loan.riskLevel) doc.text(`Risk Level: ${loan.riskLevel}`, 20, 130);
-        if (loan.fraudScore) doc.text(`Fraud Score: ${loan.fraudScore}%`, 20, 140);
-        if (loan.defaultProbability) doc.text(`Default Probability: ${loan.defaultProbability}%`, 20, 150);
-
-        let y = 165;
-        if (loan.blockchainTxHash) {
-            doc.text(`Blockchain Tx: ${loan.blockchainTxHash}`, 20, y, { maxWidth: 170 });
-            y += 15;
+        let y = 40;
+        doc.text(`Application Number: ${loan.applicationNumber}`, 20, y); y+=10;
+        doc.text(`Status: ${loan.status}`, 20, y); y+=10;
+        doc.text(`Full Name: ${loan.fullName}`, 20, y); y+=10;
+        doc.text(`Mobile: ${loan.mobile}`, 20, y); y+=10;
+        doc.text(`Loan Type: ${loan.loanType}`, 20, y); y+=10;
+        doc.text(`Purpose: ${loan.purpose}`, 20, y); y+=10;
+        doc.text(`Requested Amount: Rs. ${Number(loan.loanAmount).toLocaleString()}`, 20, y); y+=10;
+        
+        if (loan.approvedAmount && loan.status === "Approved") {
+            doc.text(`Approved Amount: Rs. ${Number(loan.approvedAmount).toLocaleString()}`, 20, y); y+=10;
         }
-
-        doc.text(
-            "This loan has been processed under the agricultural financial assistance program.",
-            20, y, { maxWidth: 170 }
-        );
-
-        doc.text("Authorized Signature", 140, y + 25);
-        doc.line(140, y + 30, 190, y + 30);
-
-        doc.save("Loan_Report.pdf");
+        if (loan.rejectionReason && loan.status === "Rejected") {
+            doc.text(`Rejection Reason: ${loan.rejectionReason}`, 20, y); y+=10;
+        }
+        
+        doc.save(`Loan-Application-${loan.applicationNumber}.pdf`);
     };
+
+    if (loading) return <div className="text-center py-20 text-gray-500 font-bold">Loading My Loans Dashboard...</div>;
+
+    const filteredLoans = loans.filter(l => {
+        const matchSearch = String(l.applicationNumber).toLowerCase().includes(search.toLowerCase());
+        let matchFilter = true;
+        if (filter === "Active") matchFilter = ["Pending", "Approved"].includes(l.status);
+        if (filter === "Completed") matchFilter = ["Completed", "COMPLETED"].includes(l.status);
+        return matchSearch && matchFilter;
+    });
 
     return (
-        <div className="page-bg min-h-[calc(100vh-64px)] flex flex-col items-center py-12 px-4 animate-fadeIn">
-            
-            {/* LARGE SCORE BADGE (Top Center) */}
-            <div className="relative w-32 h-32 flex items-center justify-center bg-yellow-400 rounded-full shadow-2xl border-4 border-yellow-500 mb-10 z-10 transition-transform hover:scale-105">
-                <div className="text-center">
-                    <div className="text-yellow-900 font-bold text-xs leading-none flex items-center justify-center gap-1 uppercase tracking-tighter">
-                        <Award size={14} /> Score
-                    </div>
-                    <div className="text-4xl font-black text-yellow-950">{loan.creditScore}</div>
-                </div>
-            </div>
+        <div className="page-bg min-h-[calc(100vh-64px)] py-10 px-4 animate-fadeIn">
+            <div className="max-w-7xl mx-auto">
 
-            <div className="w-full max-w-3xl -mt-16 pt-16">
-                {/* REASONS BOX */}
-                {(loan.rejectionReason || loan.creditScore >= 600) && (
-                    <div className={`w-full p-6 rounded-2xl mb-8 border-l-4 shadow-sm backdrop-blur-md bg-white/80 ${loan.creditScore < 600 ? 'border-red-500 bg-red-50/50' : 'border-green-500 bg-green-50/50'}`}>
-                        <h3 className={`text-xs font-bold uppercase tracking-wider mb-2 ${loan.creditScore < 600 ? 'text-red-800' : 'text-green-800'}`}>
-                            {loan.creditScore < 600 ? 'Eligibility Notice:' : 'Application Strength:'}
-                        </h3>
-                        <p className={`text-sm font-medium ${loan.creditScore < 600 ? 'text-red-700' : 'text-green-700'}`}>
-                            {loan.creditScore < 600 
-                                ? `This application may be rejected because: ${loan.rejectionReason}`
-                                : "Your application shows strong financial indicators and is highly likely to be accepted."}
-                        </p>
-                    </div>
-                )}
+                <button onClick={() => navigate("/dashboard")} className="flex items-center gap-2 text-green-700 hover:text-green-900 mb-6 font-bold">
+                    <ArrowLeft size={18} /> Back to Dashboard
+                </button>
 
-                {/* MAIN TERMS CONTAINER (Premium Green Theme from Image) */}
-                <div className="bg-[#D1FADF] rounded-[48px] p-10 text-center shadow-xl border border-[#A3E635]/20 relative overflow-hidden">
-                    {/* Background decoration */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-3xl" />
-                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-green-400/10 rounded-full -ml-16 -mb-16 blur-3xl" />
+                {/* SMART DASHBOARD (TOP SECTION) */}
+                <div className="bg-gradient-to-br from-[#064E3B] to-[#065F46] rounded-3xl p-8 mb-10 shadow-2xl text-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
+                    
+                    <h1 className="text-3xl font-black mb-6 flex items-center gap-3">
+                        <PieChart size={28} className="text-[#A3E635]" /> My Loans Dashboard
+                    </h1>
 
-                    <div className="relative z-10">
-                        <div className="flex justify-center items-center gap-2 text-green-800/60 mb-2 font-bold text-xs uppercase tracking-widest">
-                            <IndianRupee size={16} /> APPROVED AMOUNT
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
+                        <div className="bg-white/10 p-5 rounded-2xl border border-white/20 backdrop-blur-md">
+                            <p className="text-green-200 text-xs font-bold uppercase tracking-wider mb-1">Active Loans</p>
+                            <p className="text-3xl font-black text-white">{stats.totalActive}</p>
                         </div>
-                        <h2 className="text-6xl font-black text-[#064E3B] mb-8">
-                            ₹ {Number(loan.approvedAmount || loan.loanAmount).toLocaleString()}
-                        </h2>
-                        
-                        <div className="flex justify-center items-center gap-6 text-[#065F46] font-bold text-sm mb-8 pb-8 border-b border-[#065F46]/10">
-                            <span>Interest Rate: {loan.interestRate || loan.suggestedInterestRate || '8'}%</span>
-                            <div className="w-px h-6 bg-[#065F46]/20" />
-                            <span>Tenure: {loan.tenure || 12} months</span>
-                        </div>
-
-                        <div className="text-[#065F46] mb-10">
-                            <span className="text-sm font-medium opacity-70 uppercase tracking-tighter">Monthly EMI: </span>
-                            <span className="text-3xl font-black">₹{Number(loan.emiAmount || 0).toLocaleString()}</span>
-                        </div>
-
-                        {/* BLOCKCHAIN BOX */}
-                        <div className="bg-white/60 p-5 rounded-3xl border border-white/40 mb-8 backdrop-blur-sm shadow-inner group transition-all hover:bg-white/80">
-                            <div className="flex items-center justify-center gap-2 text-[10px] font-bold text-[#065F46]/60 uppercase tracking-widest mb-2">
-                                <LinkIcon size={14} /> Blockchain Transaction
-                            </div>
-                            <p className="font-mono text-[10px] text-[#065F46]/50 break-all leading-relaxed px-4">
-                                {loan.blockchainTxHash || "0xbaead d5abe93cae250469fd0f319dd234bc036325ef0d87ca30b935ce6bf948f"}
+                        <div className="bg-white/10 p-5 rounded-2xl border border-white/20 backdrop-blur-md">
+                            <p className="text-yellow-200 text-xs font-bold uppercase tracking-wider mb-1">Due This Month</p>
+                            <p className="text-3xl font-black text-white flex items-center gap-1">
+                                <IndianRupee size={20} />{stats.dueThisMonth.toLocaleString()}
                             </p>
                         </div>
-
-                        {/* ACTION BUTTONS */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <button
-                                onClick={generatePDF}
-                                className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2"
-                            >
-                                <FileText size={20} /> Download Report
-                            </button>
-                            <button
-                                onClick={() => navigate(`/repayment/${loan._id}`)}
-                                className="px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-bold shadow-lg shadow-teal-200 transition-all flex items-center justify-center gap-2"
-                            >
-                                <IndianRupee size={20} /> Repayment Tracking
-                            </button>
+                        <div className="bg-white/10 p-5 rounded-2xl border border-white/20 backdrop-blur-md">
+                            <p className="text-red-200 text-xs font-bold uppercase tracking-wider mb-1">Overall Due</p>
+                            <p className="text-3xl font-black text-white flex items-center gap-1">
+                                <IndianRupee size={20} />{stats.overallAmount.toLocaleString()}
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                {/* BOTTOM BUTTON */}
-                <div className="mt-8 flex justify-center">
-                    <button
-                        onClick={() => navigate("/dashboard")}
-                        className="w-full max-w-sm py-4 bg-[#065F46] hover:bg-[#064E3B] text-white rounded-3xl text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-100 uppercase tracking-widest"
-                    >
-                        <ArrowLeft size={16} /> Back to Dashboard
-                    </button>
+                {/* FILTERS AND SEARCH */}
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+                    <div className="flex bg-white rounded-xl shadow-sm p-1">
+                        {["All", "Active", "Completed"].map(lbl => (
+                            <button key={lbl} onClick={() => setFilter(lbl)}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${filter === lbl ? 'bg-green-600 text-white shadow-md' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'}`}>
+                                {lbl} Loans
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="relative w-full md:w-64">
+                        <Search className="absolute left-3 top-3.5 text-gray-400" size={16} />
+                        <input type="text" placeholder="Search Loan ID..." value={search} onChange={e => setSearch(e.target.value)}
+                            className="w-full pl-9 pr-4 py-3 bg-white border-0 shadow-sm rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-medium" />
+                    </div>
                 </div>
+
+                {/* LOAN LIST */}
+                {filteredLoans.length === 0 ? (
+                    <div className="text-center py-20 bg-white rounded-3xl shadow-sm border border-gray-100">
+                        <Activity className="mx-auto text-gray-300 mb-4" size={48} />
+                        <p className="text-gray-500 font-bold">No loans found matching your criteria.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {filteredLoans.map(loan => {
+                            const schedData = schedules[loan._id];
+                            const health = getLoanHealth(schedData);
+                            const prio = getPriority(schedData);
+                            const isApproved = loan.status === "Approved";
+                            const isCompleted = ["Completed", "COMPLETED"].includes(loan.status);
+
+                            return (
+                                <div key={loan._id} className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 transition-all hover:shadow-xl hover:-translate-y-1">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase mb-2 ${
+                                                isCompleted ? 'bg-blue-100 text-blue-700' :
+                                                isApproved ? 'bg-green-100 text-green-700' :
+                                                loan.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                'bg-red-100 text-red-700'
+                                            }`}>
+                                                {loan.status}
+                                            </span>
+                                            <h3 className="text-lg font-black text-gray-800 flex items-center gap-1">
+                                                <Hash size={16} className="text-gray-400" /> {loan.applicationNumber}
+                                            </h3>
+                                        </div>
+                                        
+                                        {isApproved && !isCompleted && prio && (
+                                            <div className={`px-3 py-1.5 rounded-xl flex items-center gap-1 text-xs font-bold ${prio.bg} ${prio.color}`}>
+                                                {prio.icon} {prio.label}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4 mb-6">
+                                        <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                            <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">Amount</p>
+                                            <p className="text-emerald-700 font-black text-xl">₹{Number(loan.approvedAmount || loan.loanAmount).toLocaleString()}</p>
+                                        </div>
+                                        <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                            <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">Remaining EMIs</p>
+                                            <p className="text-gray-800 font-black text-xl">
+                                                {schedData ? (schedData.schedule.length - schedData.paidCount) : (isCompleted ? '0' : loan.tenure)}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {isApproved && !isCompleted && (
+                                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100 flex-wrap gap-4">
+                                            <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
+                                                <ShieldCheck size={16} /> Health:
+                                                <span className={`font-bold ${health.color}`}>{health.label}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button onClick={() => {
+                                                    const nextEmi = schedData?.schedule.find(r => r.status === "NOT_PAID");
+                                                    navigate(`/loan/${loan._id}`, { state: { autoPay: nextEmi?.month } });
+                                                }} className="px-5 py-2.5 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2">
+                                                    <CreditCard size={16} /> Pay Next EMI
+                                                </button>
+                                                <Link to={`/loan/${loan._id}`} className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-bold shadow-md shadow-green-200 transition-all flex items-center gap-2">
+                                                    View <ArrowLeft size={16} className="rotate-180" />
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {isCompleted && (
+                                        <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end">
+                                            <Link to={`/loan/${loan._id}`} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-200 transition-all flex items-center gap-2">
+                                                View History <ArrowLeft size={16} className="rotate-180" />
+                                            </Link>
+                                        </div>
+                                    )}
+
+                                    {loan.status === "Pending" && (
+                                        <div className="mt-4 pt-4 border-t border-gray-100">
+                                            <p className="text-xs text-yellow-600 font-bold flex items-center gap-2">
+                                                <Clock size={16} /> Under review by Bank Manager
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    <div className="mt-4 pt-4 border-t border-gray-100">
+                                        <button onClick={() => downloadLoanPDF(loan)} className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-xl text-sm font-bold shadow-sm transition-all">
+                                            <Download size={16} /> Download Application PDF
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -1,11 +1,21 @@
 const mongoose = require("mongoose");
 
 const repaymentSchema = new mongoose.Schema({
-  amount: { type: Number, required: true },
-  date: { type: Date, default: Date.now },
   emiNumber: { type: Number, required: true },
+  amount: { type: Number, required: true },
+  dueDate: { type: Date, required: true },
+  status: {
+    type: String,
+    enum: ["NOT_PAID", "PENDING_APPROVAL", "VERIFICATION_REQUESTED", "PAID"],
+    default: "NOT_PAID",
+  },
+  paymentMethod: { type: String, enum: ["UPI", "Card", "NetBanking", "Offline", ""], default: "" },
+  paymentId: { type: String, default: "" },
+  transactionId: { type: String, default: "" },
+  paidDate: { type: Date },
+  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  approvedAt: { type: Date },
   txHash: { type: String, default: "" },
-  status: { type: String, enum: ["Paid", "Pending", "Late"], default: "Paid" },
 });
 
 const loanSchema = new mongoose.Schema({
@@ -68,8 +78,9 @@ const loanSchema = new mongoose.Schema({
   interestRate: { type: Number, default: 0 },
   tenure: { type: Number, default: 0 },
   emiAmount: { type: Number, default: 0 },
+  emiDueDay: { type: Number, default: 10 }, // Day of month EMIs are due
 
-  // Repayments
+  // Repayments (EMI Schedule)
   repayments: [repaymentSchema],
 
   // Documents
@@ -78,7 +89,8 @@ const loanSchema = new mongoose.Schema({
     incomeCertificate: { type: String },
     aadhaar: { type: String },
     pan: { type: String },
-    photo: { type: String }
+    photo: { type: String },
+    soilHealthCard: { type: String }
   },
 
   // PDF

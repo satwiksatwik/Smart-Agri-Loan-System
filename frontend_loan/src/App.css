@@ -69,3 +69,12 @@ button:hover {
 .page-bg {
   background: linear-gradient(135deg, #ecfdf5, #fef9c3);
 }
+
+/* Subtle pulse for reminder alerts */
+@keyframes pulseSubtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+.animate-pulse-subtle {
+  animation: pulseSubtle 2.5s ease-in-out infinite;
+}

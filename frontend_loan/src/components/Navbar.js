@@ -13,7 +13,6 @@ import {
     FileText,
     Activity,
     ChevronDown,
-    Landmark,
     Calculator,
     Shield
 } from 'lucide-react';
@@ -26,6 +25,7 @@ const Navbar = () => {
 
     const [isOpen, setIsOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    // eslint-disable-next-line no-unused-vars
     const [profilePhoto, setProfilePhoto] = useState(null);
     const dropdownRef = useRef(null);
 
@@ -205,7 +205,7 @@ const Navbar = () => {
                                         <FileText size={18} /> Apply
                                     </Link>
                                     <Link to="/loan-status" className={navLinkClass('/loan-status')}>
-                                        <Activity size={18} /> Status
+                                        <Activity size={18} /> My Loans
                                     </Link>
                                     <Link to="/emi-calculator" className={navLinkClass('/emi-calculator')}>
                                         <Calculator size={18} /> EMI
@@ -244,6 +244,18 @@ const Navbar = () => {
                                         )}
                                     </div>
                                 </>
+                            ) : isAdminPage ? (
+                                <>
+                                    <Link to="/admin" className="text-white font-semibold flex items-center gap-2 px-4 py-2 hover:bg-white/20 rounded-lg transition-colors">
+                                        <Shield size={16} /> Login
+                                    </Link>
+                                    <Link
+                                        to="/admin/register"
+                                        className="bg-yellow-400 text-green-900 px-4 py-2 rounded-lg font-bold shadow-md hover:bg-yellow-300 transition"
+                                    >
+                                        Register
+                                    </Link>
+                                </>
                             ) : (
                                 <>
                                     <Link to="/login" className="text-white font-semibold px-4 py-2 hover:bg-white/20 rounded-lg">
@@ -275,15 +287,20 @@ const Navbar = () => {
                             <>
                                 <Link to="/dashboard" onClick={() => setIsOpen(false)} className="block">Dashboard</Link>
                                 <Link to="/loan-apply" onClick={() => setIsOpen(false)} className="block">Apply Loan</Link>
-                                <Link to="/loan-status" onClick={() => setIsOpen(false)} className="block">Loan Status</Link>
+                                <Link to="/loan-status" onClick={() => setIsOpen(false)} className="block">My Loans</Link>
                                 <Link to="/emi-calculator" onClick={() => setIsOpen(false)} className="block">EMI Calculator</Link>
                                 <Link to="/profile" onClick={() => setIsOpen(false)} className="block">Profile</Link>
                                 <button onClick={handleLogout} className="text-red-300">Logout</button>
                             </>
+                        ) : isAdminPage ? (
+                            <>
+                                <Link to="/admin" onClick={() => setIsOpen(false)} className="block">Manager Login</Link>
+                                <Link to="/admin/register" onClick={() => setIsOpen(false)} className="block text-yellow-300">Manager Register</Link>
+                            </>
                         ) : (
                             <>
-                                <Link to="/login" onClick={() => setIsOpen(false)}>Login</Link>
-                                <Link to="/register" onClick={() => setIsOpen(false)}>Register</Link>
+                                <Link to="/login" onClick={() => setIsOpen(false)} className="block">Login</Link>
+                                <Link to="/register" onClick={() => setIsOpen(false)} className="block text-yellow-300">Register</Link>
                             </>
                         )}
                     </div>

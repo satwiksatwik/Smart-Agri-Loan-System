@@ -7,8 +7,7 @@ import {
   Sprout,
   TrendingUp,
   Hash,
-  Calculator,
-  IndianRupee
+  Calculator
 } from "lucide-react";
 
 import React from 'react';
@@ -215,7 +214,7 @@ const Dashboard = () => {
           <ActionCard
             to="/loan-status"
             icon={<Activity className="text-purple-600 h-8 w-8" />}
-            title="Loan Status"
+            title="My Loans"
             desc="Track your submitted loan requests."
           />
           <ActionCard
@@ -231,18 +230,6 @@ const Dashboard = () => {
             desc="Manage personal information."
           />
         </div>
-
-        {/* ================= REPAYMENT LINKS ================= */}
-        {latestLoan && latestLoan.status === "Approved" && (
-          <div className="mt-6">
-            <ActionCard
-              to={`/repayment/${latestLoan._id}`}
-              icon={<IndianRupee className="text-teal-600 h-8 w-8" />}
-              title="Repayment Tracking"
-              desc={`Track EMI payments for ${latestLoan.applicationNumber}`}
-            />
-          </div>
-        )}
 
         {/* ================= LOGOUT ================= */}
         <div className="mt-10 text-center">
@@ -272,7 +259,7 @@ const StatCard = ({ title, value, bg, text }) => (
 const ActionCard = ({ to, icon, title, desc }) => (
   <Link
     to={to}
-    className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition transform"
+    className="block bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition transform"
   >
     <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-4">
       {icon}

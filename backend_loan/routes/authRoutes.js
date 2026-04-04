@@ -164,6 +164,45 @@ router.post("/register", async (req, res) => {
   }
 });
 
+/* =========================================================
+   📝 Admin / Manager Register
+========================================================= */
+router.post("/admin/register", async (req, res) => {
+  try {
+    const { username, password, fullName, mobile, employeeId, bankName, branchName } = req.body;
+
+    if (!username || !password || !fullName || !employeeId) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const usernameExists = await User.findOne({ username });
+    if (usernameExists) {
+      return res.status(400).json({ message: "Username already taken" });
+    }
+
+    const user = new User({
+      username,
+      password,
+      email: `${username}@${bankName.toLowerCase().replace(/\s/g, '')}.com`, // Gen dummy email to bypass unique constraint
+      fullName,
+      mobile,
+      employeeId,
+      bankName,
+      branchName,
+      role: "bank_manager",
+      isVerified: true // auto verify for managers for now
+    });
+
+    await user.save();
+
+    res.json({ message: "Manager Registered Successfully" });
+
+  } catch (error) {
+    console.error("ADMIN REGISTER ERROR:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 
 /* =========================================================
    🔑 Login (Username + Password)

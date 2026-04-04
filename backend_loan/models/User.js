@@ -11,6 +11,26 @@ const userSchema = mongoose.Schema(
       trim: true,
     },
 
+    // ✨ Full Name
+    fullName: {
+      type: String,
+      trim: true,
+    },
+
+    // 🧑‍💼 Bank Employee specific fields
+    employeeId: {
+      type: String,
+      trim: true,
+    },
+    bankName: {
+      type: String,
+      trim: true,
+    },
+    branchName: {
+      type: String,
+      trim: true,
+    },
+
     // 📧 Email (Primary Identifier)
     email: {
       type: String,
@@ -31,7 +51,7 @@ const userSchema = mongoose.Schema(
     // 🔐 Password (Hashed automatically)
     password: {
       type: String,
-      minlength: 6,
+      minlength: 5,
     },
 
     // 🛡 Role (User/Admin)
@@ -68,6 +88,10 @@ const userSchema = mongoose.Schema(
         default: "",
       },
       photo: {
+        type: String,
+        default: "",
+      },
+      soilHealthCard: {
         type: String,
         default: "",
       },

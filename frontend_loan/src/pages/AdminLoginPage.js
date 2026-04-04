@@ -117,7 +117,11 @@ const AdminLoginPage = () => {
                     </button>
                 </form>
 
-                <div className="text-center text-xs text-gray-400 mt-4">
+                <div className="text-center text-sm text-gray-500 mt-6 font-medium">
+                    New bank employee? <a href="/admin/register" className="text-green-600 hover:text-green-800 underline">Register here</a>
+                </div>
+
+                <div className="text-center text-xs text-gray-400 mt-2">
                     Authorized personnel only. All actions are audited.
                 </div>
             </div>

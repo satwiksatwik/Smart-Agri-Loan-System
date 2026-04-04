@@ -15,7 +15,7 @@ const createAdmin = async () => {
         username: "admin",
         email: "admin@agriloan.com",
         mobile: "9999999999",
-        password: "Admin@123",
+        password: "admin",
         role: "admin",
         isVerified: true
     });

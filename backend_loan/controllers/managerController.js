@@ -198,6 +198,23 @@ const approveLoan = async (req, res) => {
         loan.reviewedAt = new Date();
         loan.blockchainTxHash = blockchainResult?.txHash || "";
 
+        // ✅ AUTO-GENERATE EMI SCHEDULE with due dates
+        const emiDueDay = loan.emiDueDay || 10;
+        const approvalDate = new Date();
+        loan.repayments = [];
+        for (let i = 1; i <= n; i++) {
+            const dueMonth = approvalDate.getMonth() + i;
+            const dueYear = approvalDate.getFullYear() + Math.floor(dueMonth / 12);
+            const dueMonthNormalized = dueMonth % 12;
+            const dueDate = new Date(dueYear, dueMonthNormalized, emiDueDay);
+            loan.repayments.push({
+                emiNumber: i,
+                amount: Math.round(emi),
+                dueDate,
+                status: "NOT_PAID",
+            });
+        }
+
         await loan.save();
 
         // Audit log
@@ -481,6 +498,139 @@ const getManagerDocument = async (req, res) => {
     }
 };
 
+/* =========================================================
+   📋 GET PENDING EMI PAYMENTS (for manager approval)
+========================================================= */
+const getPendingEMIs = async (req, res) => {
+    try {
+        const loans = await Loan.find({
+            status: "Approved",
+            "repayments.status": { $in: ["PENDING_APPROVAL", "VERIFICATION_REQUESTED"] },
+        }).populate("userId", "username email");
+
+        const pendingEMIs = [];
+        for (const loan of loans) {
+            for (const rep of loan.repayments) {
+                if (rep.status === "PENDING_APPROVAL" || rep.status === "VERIFICATION_REQUESTED") {
+                    pendingEMIs.push({
+                        loanId: loan._id,
+                        applicationNumber: loan.applicationNumber,
+                        farmerName: loan.fullName,
+                        emiNumber: rep.emiNumber,
+                        amount: rep.amount,
+                        dueDate: rep.dueDate,
+                        status: rep.status,
+                        paymentMethod: rep.paymentMethod,
+                        paymentId: rep.paymentId,
+                        transactionId: rep.transactionId,
+                        paidDate: rep.paidDate,
+                        repaymentId: rep._id,
+                    });
+                }
+            }
+        }
+
+        res.json(pendingEMIs);
+    } catch (error) {
+        console.error("Pending EMIs error:", error);
+        res.status(500).json({ message: "Failed to fetch pending EMIs" });
+    }
+};
+
+/* =========================================================
+   ✅ APPROVE EMI PAYMENT
+========================================================= */
+const approveEMI = async (req, res) => {
+    try {
+        const { emiNumber } = req.body;
+        const loan = await Loan.findById(req.params.loanId);
+        if (!loan) return res.status(404).json({ message: "Loan not found" });
+
+        const repayment = loan.repayments.find(r => r.emiNumber === Number(emiNumber));
+        if (!repayment) return res.status(404).json({ message: "EMI not found" });
+        if (repayment.status === "PAID") return res.status(400).json({ message: "Already paid" });
+        if (repayment.status === "NOT_PAID") return res.status(400).json({ message: "No payment to approve" });
+
+        // Record on blockchain
+        let blockchainResult = null;
+        if (loan.blockchainLoanId) {
+            try {
+                blockchainResult = await blockchainService.recordRepaymentOnChain(
+                    parseInt(loan.blockchainLoanId),
+                    repayment.amount,
+                    emiNumber
+                );
+            } catch (bcError) {
+                console.error("Blockchain repayment error:", bcError.message);
+            }
+        }
+
+        repayment.status = "PAID";
+        repayment.approvedBy = req.user._id;
+        repayment.approvedAt = new Date();
+        repayment.txHash = blockchainResult?.txHash || "";
+
+        const allPaid = loan.repayments.every(r => r.status === "PAID");
+        if (allPaid) {
+            loan.status = "Completed";
+        }
+
+        await loan.save();
+
+        await AuditLog.create({
+            action: "EMI_APPROVED",
+            performedBy: req.user._id,
+            performedByRole: req.user.role,
+            targetLoan: loan._id,
+            details: `EMI #${emiNumber} approved. Amount: ₹${repayment.amount}`,
+            metadata: { txHash: blockchainResult?.txHash || "" },
+        });
+
+        res.json({
+            message: `EMI #${emiNumber} approved successfully`,
+            txHash: blockchainResult?.txHash || null,
+        });
+    } catch (error) {
+        console.error("Approve EMI error:", error);
+        res.status(500).json({ message: "EMI approval failed" });
+    }
+};
+
+/* =========================================================
+   ❌ REJECT EMI PAYMENT
+========================================================= */
+const rejectEMI = async (req, res) => {
+    try {
+        const { emiNumber } = req.body;
+        const loan = await Loan.findById(req.params.loanId);
+        if (!loan) return res.status(404).json({ message: "Loan not found" });
+
+        const repayment = loan.repayments.find(r => r.emiNumber === Number(emiNumber));
+        if (!repayment) return res.status(404).json({ message: "EMI not found" });
+
+        repayment.status = "NOT_PAID";
+        repayment.paymentMethod = "";
+        repayment.paymentId = "";
+        repayment.transactionId = "";
+        repayment.paidDate = null;
+
+        await loan.save();
+
+        await AuditLog.create({
+            action: "EMI_REJECTED",
+            performedBy: req.user._id,
+            performedByRole: req.user.role,
+            targetLoan: loan._id,
+            details: `EMI #${emiNumber} payment rejected. User can retry.`,
+        });
+
+        res.json({ message: `EMI #${emiNumber} rejected. User can retry payment.` });
+    } catch (error) {
+        console.error("Reject EMI error:", error);
+        res.status(500).json({ message: "EMI rejection failed" });
+    }
+};
+
 module.exports = {
     getManagerDashboard,
     getLoans,
@@ -490,4 +640,7 @@ module.exports = {
     generateLoanPDF,
     getBlockchainTransactions,
     getManagerDocument,
+    getPendingEMIs,
+    approveEMI,
+    rejectEMI,
 };

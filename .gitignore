@@ -3,6 +3,10 @@ node_modules/
 frontend_loan/node_modules/
 backend_loan/node_modules/
 
+# Environment variables (SECRETS - never push!)
+.env
+*.env
+backend_loan/.env
 
 # Python
 __pycache__/
@@ -10,11 +14,22 @@ __pycache__/
 ml-api/venv/
 ml-api/.venv/
 ml-training/venv/
+env/
 .pytest_cache/
 
+# Blockchain artifacts (regenerated on deploy)
+blockchain/artifacts/
+blockchain/cache/
+blockchain/deployment.json
+
 # Uploads
-backend/uploads/*
-!backend/uploads/.gitkeep
+backend_loan/uploads/*
+!backend_loan/uploads/.gitkeep
+
+# Temp/generated scripts
+backend_loan/removeDummyData.js
+backend_loan/createRealisticData.js
+backend_loan/sync.log
 
 # IDEs
 .vscode/
@@ -23,3 +38,4 @@ backend/uploads/*
 # Logs
 npm-debug.log
 yarn-error.log
+*.log

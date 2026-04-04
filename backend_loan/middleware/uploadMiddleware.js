@@ -28,7 +28,8 @@ const validFields = [
     "pan",
     "incomeCertificate",
     "adangal",
-    "photo"
+    "photo",
+    "soilHealthCard"
 ];
 
 // ================= STORAGE CONFIG =================

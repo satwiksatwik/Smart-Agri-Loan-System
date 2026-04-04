@@ -30,24 +30,24 @@ const applyForLoan = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // Prevent multiple pending loans
-        const existingPendingLoan = await Loan.findOne({
+        // Allow max 2 active loans per user
+        const activeLoansCount = await Loan.countDocuments({
             userId: req.user._id,
-            status: "Pending"
+            status: { $nin: ["Completed", "Rejected", "COMPLETED", "REJECTED"] }
         }).session(session);
 
-        if (existingPendingLoan) {
+        if (activeLoansCount >= 2) {
             await session.abortTransaction();
             session.endSession();
             return res.status(400).json({
-                message: "You already have a pending loan application."
+                message: "You already have 2 active loans. Please repay existing loans before applying for a new loan."
             });
         }
 
         const {
             fullName, age, mobile, aadhaar, pan, annualIncome, creditScore,
             existingLoans, landSize, landLocation, soilQuality, irrigation,
-            ownership, loanAmount, purpose, loanType, history
+            ownership, loanAmount, purpose, loanType, tenure, history
         } = req.body;
 
         /* ================= EXTRA SECURITY VALIDATIONS ================= */
@@ -91,7 +91,7 @@ const applyForLoan = async (req, res) => {
             hasDoc("photo");
 
         const uploadedFiles = req.files || {};
-        const fields = ["adangal", "incomeCertificate", "aadhaar", "pan", "photo"];
+        const fields = ["adangal", "incomeCertificate", "aadhaar", "pan", "photo", "soilHealthCard"];
         const newDocs = {};
 
         for (const field of fields) {
@@ -156,7 +156,7 @@ const applyForLoan = async (req, res) => {
 
         // Calculate Preliminary EMI for Display
         let preliminaryEMI = 0;
-        let preliminaryTenure = 12; // 1 Year Default
+        let preliminaryTenure = Number(tenure) || 12; // Use user-selected tenure
         if (approvedAmount > 0) {
             const totalMonthlyRate = (suggestedInterestRate / 100) / 12;
             const numerator = approvedAmount * totalMonthlyRate * Math.pow(1 + totalMonthlyRate, preliminaryTenure);
@@ -363,6 +363,7 @@ const getLoanDocument = async (req, res) => {
                 { "documentPaths.aadhaar": filename },
                 { "documentPaths.pan": filename },
                 { "documentPaths.photo": filename },
+                { "documentPaths.soilHealthCard": filename },
             ],
         };
 

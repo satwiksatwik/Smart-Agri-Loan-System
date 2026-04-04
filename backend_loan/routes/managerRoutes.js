@@ -11,6 +11,9 @@ const {
     generateLoanPDF,
     getBlockchainTransactions,
     getManagerDocument,
+    getPendingEMIs,
+    approveEMI,
+    rejectEMI,
 } = require("../controllers/managerController");
 
 // All routes require authentication + bank_manager or admin role
@@ -35,5 +38,10 @@ router.get("/document/:filename", getManagerDocument);
 
 // Blockchain Transactions
 router.get("/blockchain/transactions", getBlockchainTransactions);
+
+// EMI Approval Routes
+router.get("/emi/pending", getPendingEMIs);
+router.put("/emi/:loanId/approve", approveEMI);
+router.put("/emi/:loanId/reject", rejectEMI);
 
 module.exports = router;

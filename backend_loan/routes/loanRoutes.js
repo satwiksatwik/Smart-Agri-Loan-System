@@ -23,6 +23,7 @@ const uploadFields = upload.fields([
   { name: "aadhaar", maxCount: 1 },
   { name: "pan", maxCount: 1 },
   { name: "photo", maxCount: 1 },
+  { name: "soilHealthCard", maxCount: 1 },
 ]);
 
 // Wrapper to handle multer errors (File too large, etc.)
