@@ -20,6 +20,7 @@ import ManagerDashboard from './pages/ManagerDashboard';
 import ManagerLoanDetail from './pages/ManagerLoanDetail';
 import EMICalculator from './pages/EMICalculator';
 import RepaymentTracking from './pages/RepaymentTracking';
+import ChatBot from './components/ChatBot/ChatBot';
 
 // Protected Route Component (For authenticated users)
 const ProtectedRoute = ({ children }) => {
@@ -107,6 +108,7 @@ function App() {
               <Route path="/manager/dashboard" element={<ManagerRoute><ManagerDashboard /></ManagerRoute>} />
               <Route path="/manager/loan/:id" element={<ManagerRoute><ManagerLoanDetail /></ManagerRoute>} />
             </Routes>
+            <ChatBot />
           </div>
         </AdminAuthProvider>
       </AuthProvider>

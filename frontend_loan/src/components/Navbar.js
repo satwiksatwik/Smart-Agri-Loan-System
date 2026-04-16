@@ -16,6 +16,7 @@ import {
     Calculator,
     Shield
 } from 'lucide-react';
+import LanguageSelector from './LanguageSelector';
 
 const Navbar = () => {
     const { user, logout } = useAuth();
@@ -112,6 +113,7 @@ const Navbar = () => {
                                 <Link to="/manager/dashboard" className={navLinkClass('/manager/dashboard')}>
                                     <LayoutDashboard size={18} /> Dashboard
                                 </Link>
+                                <LanguageSelector />
 
                                 {/* Profile Dropdown */}
                                 <div className="relative ml-4" ref={dropdownRef}>
@@ -195,7 +197,7 @@ const Navbar = () => {
 
                         {/* Desktop Nav */}
                         <div className="hidden md:flex items-center gap-2">
-
+                            <LanguageSelector />
                             {user ? (
                                 <>
                                     <Link to="/dashboard" className={navLinkClass('/dashboard')}>
