@@ -6,7 +6,7 @@ const AdminAPI = axios.create({
 
 // Attach admin JWT token automatically
 AdminAPI.interceptors.request.use((config) => {
-    const token = localStorage.getItem("adminToken");
+    const token = sessionStorage.getItem("adminToken");
 
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -20,8 +20,8 @@ AdminAPI.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response && error.response.status === 401) {
-            localStorage.removeItem("adminToken");
-            localStorage.removeItem("adminUser");
+            sessionStorage.removeItem("adminToken");
+            sessionStorage.removeItem("adminUser");
             window.location.href = "/admin";
         }
         return Promise.reject(error);

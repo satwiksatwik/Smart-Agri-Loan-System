@@ -8,8 +8,8 @@ export const AdminAuthProvider = ({ children }) => {
 
     // Load admin on refresh
     useEffect(() => {
-        const storedAdmin = localStorage.getItem("adminUser");
-        const token = localStorage.getItem("adminToken");
+        const storedAdmin = sessionStorage.getItem("adminUser");
+        const token = sessionStorage.getItem("adminToken");
 
         if (storedAdmin && token) {
             setAdmin(JSON.parse(storedAdmin));
@@ -20,21 +20,21 @@ export const AdminAuthProvider = ({ children }) => {
 
     // LOGIN
     const adminLogin = (data) => {
-        localStorage.setItem("adminToken", data.token);
+        sessionStorage.setItem("adminToken", data.token);
 
         const adminData = {
             username: data.username,
             role: data.role,
         };
 
-        localStorage.setItem("adminUser", JSON.stringify(adminData));
+        sessionStorage.setItem("adminUser", JSON.stringify(adminData));
         setAdmin(adminData);
     };
 
     // LOGOUT
     const adminLogout = () => {
-        localStorage.removeItem("adminToken");
-        localStorage.removeItem("adminUser");
+        sessionStorage.removeItem("adminToken");
+        sessionStorage.removeItem("adminUser");
         setAdmin(null);
         window.location.href = "/admin";
     };

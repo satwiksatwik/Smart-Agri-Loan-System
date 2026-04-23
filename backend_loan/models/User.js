@@ -61,13 +61,6 @@ const userSchema = mongoose.Schema(
       default: "user",
     },
 
-    // 🌐 Preferred Language
-    preferredLanguage: {
-      type: String,
-      enum: ["en", "te", "hi", "ta", "kn"],
-      default: "en",
-    },
-
     // 🖼 Profile Photo Path
     profilePhoto: {
       type: String,

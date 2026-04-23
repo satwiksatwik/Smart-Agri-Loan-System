@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import API from '../api';
 import {
     User, Phone, Mail, Shield, Calendar,
-    Edit2, Lock, CheckCircle, AlertCircle
+    CheckCircle, AlertCircle
 } from 'lucide-react';
 
 const ProfilePage = () => {
@@ -10,7 +10,7 @@ const ProfilePage = () => {
     const [user, setUser] = useState(null);
     const [loans, setLoans] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState({ type: '', text: '' });
+    const [message] = useState({ type: '', text: '' });
 
     const fetchProfile = async () => {
         try {

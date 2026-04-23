@@ -8,7 +8,7 @@ function Profile() {
     const [passwordMode, setPasswordMode] = useState(false);
     const [photo, setPhoto] = useState(null);
 
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
 
     // Fetch Profile Data
     useEffect(() => {

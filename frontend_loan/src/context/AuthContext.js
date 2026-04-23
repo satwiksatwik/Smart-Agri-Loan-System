@@ -8,8 +8,8 @@ export const AuthProvider = ({ children }) => {
 
     // Load user on refresh
     useEffect(() => {
-        const storedUser = localStorage.getItem("user");
-        const token = localStorage.getItem("token");
+        const storedUser = sessionStorage.getItem("user");
+        const token = sessionStorage.getItem("token");
 
         if (storedUser && token) {
             setUser(JSON.parse(storedUser));
@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
     // LOGIN
     const login = (data) => {
         // Store token separately
-        localStorage.setItem("token", data.token);
+        sessionStorage.setItem("token", data.token);
 
         // Store user info
         const userData = {
@@ -29,14 +29,14 @@ export const AuthProvider = ({ children }) => {
             role: data.role,
         };
 
-        localStorage.setItem("user", JSON.stringify(userData));
+        sessionStorage.setItem("user", JSON.stringify(userData));
         setUser(userData);
     };
 
     // LOGOUT
     const logout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("user");
         setUser(null);
         window.location.href = "/login";
     };

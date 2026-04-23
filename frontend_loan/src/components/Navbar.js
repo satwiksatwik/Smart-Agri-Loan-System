@@ -16,7 +16,6 @@ import {
     Calculator,
     Shield
 } from 'lucide-react';
-import LanguageSelector from './LanguageSelector';
 
 const Navbar = () => {
     const { user, logout } = useAuth();
@@ -113,7 +112,6 @@ const Navbar = () => {
                                 <Link to="/manager/dashboard" className={navLinkClass('/manager/dashboard')}>
                                     <LayoutDashboard size={18} /> Dashboard
                                 </Link>
-                                <LanguageSelector />
 
                                 {/* Profile Dropdown */}
                                 <div className="relative ml-4" ref={dropdownRef}>
@@ -197,8 +195,20 @@ const Navbar = () => {
 
                         {/* Desktop Nav */}
                         <div className="hidden md:flex items-center gap-2">
-                            <LanguageSelector />
-                            {user ? (
+
+                            {isAdminPage ? (
+                                <>
+                                    <Link to="/admin/login" className="text-white font-semibold flex items-center gap-2 px-4 py-2 hover:bg-white/20 rounded-lg transition-colors">
+                                        <Shield size={16} /> Login
+                                    </Link>
+                                    <Link
+                                        to="/admin/register"
+                                        className="bg-yellow-400 text-green-900 px-4 py-2 rounded-lg font-bold shadow-md hover:bg-yellow-300 transition"
+                                    >
+                                        Register
+                                    </Link>
+                                </>
+                            ) : user ? (
                                 <>
                                     <Link to="/dashboard" className={navLinkClass('/dashboard')}>
                                         <LayoutDashboard size={18} /> Dashboard
@@ -246,18 +256,6 @@ const Navbar = () => {
                                         )}
                                     </div>
                                 </>
-                            ) : isAdminPage ? (
-                                <>
-                                    <Link to="/admin" className="text-white font-semibold flex items-center gap-2 px-4 py-2 hover:bg-white/20 rounded-lg transition-colors">
-                                        <Shield size={16} /> Login
-                                    </Link>
-                                    <Link
-                                        to="/admin/register"
-                                        className="bg-yellow-400 text-green-900 px-4 py-2 rounded-lg font-bold shadow-md hover:bg-yellow-300 transition"
-                                    >
-                                        Register
-                                    </Link>
-                                </>
                             ) : (
                                 <>
                                     <Link to="/login" className="text-white font-semibold px-4 py-2 hover:bg-white/20 rounded-lg">
@@ -285,7 +283,12 @@ const Navbar = () => {
                 {/* Mobile Menu */}
                 {isOpen && (
                     <div className="md:hidden bg-green-800 text-white px-6 py-4 space-y-3">
-                        {user ? (
+                        {isAdminPage ? (
+                            <>
+                                <Link to="/admin/login" onClick={() => setIsOpen(false)} className="block">Manager Login</Link>
+                                <Link to="/admin/register" onClick={() => setIsOpen(false)} className="block text-yellow-300">Manager Register</Link>
+                            </>
+                        ) : user ? (
                             <>
                                 <Link to="/dashboard" onClick={() => setIsOpen(false)} className="block">Dashboard</Link>
                                 <Link to="/loan-apply" onClick={() => setIsOpen(false)} className="block">Apply Loan</Link>
@@ -293,11 +296,6 @@ const Navbar = () => {
                                 <Link to="/emi-calculator" onClick={() => setIsOpen(false)} className="block">EMI Calculator</Link>
                                 <Link to="/profile" onClick={() => setIsOpen(false)} className="block">Profile</Link>
                                 <button onClick={handleLogout} className="text-red-300">Logout</button>
-                            </>
-                        ) : isAdminPage ? (
-                            <>
-                                <Link to="/admin" onClick={() => setIsOpen(false)} className="block">Manager Login</Link>
-                                <Link to="/admin/register" onClick={() => setIsOpen(false)} className="block text-yellow-300">Manager Register</Link>
                             </>
                         ) : (
                             <>

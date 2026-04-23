@@ -7,6 +7,7 @@ import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext';
 
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
+import AdminLandingPage from './pages/AdminLandingPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminRegisterPage from './pages/AdminRegisterPage';
 
@@ -20,7 +21,6 @@ import ManagerDashboard from './pages/ManagerDashboard';
 import ManagerLoanDetail from './pages/ManagerLoanDetail';
 import EMICalculator from './pages/EMICalculator';
 import RepaymentTracking from './pages/RepaymentTracking';
-import ChatBot from './components/ChatBot/ChatBot';
 
 // Protected Route Component (For authenticated users)
 const ProtectedRoute = ({ children }) => {
@@ -41,16 +41,7 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
-// Admin Login Route — redirect if admin is already logged in
-const AdminPublicRoute = ({ children }) => {
-  const { admin, loading } = useAdminAuth();
-  if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
 
-  if (admin) {
-    return <Navigate to="/manager/dashboard" />;
-  }
-  return children;
-};
 
 // Manager Route Component (For bank_manager and admin roles via admin session)
 const ManagerRoute = ({ children }) => {
@@ -98,7 +89,8 @@ function App() {
               <Route path="/loan/:loanId" element={<ProtectedRoute><RepaymentTracking /></ProtectedRoute>} />
 
               {/* Admin Login & Register (separate from farmer login) */}
-              <Route path="/admin" element={<AdminLoginPage />} />
+              <Route path="/admin" element={<AdminLandingPage />} />
+              <Route path="/admin/login" element={<AdminLoginPage />} />
               <Route path="/admin/register" element={<AdminRegisterPage />} />
 
               {/* Admin Dashboard */}
@@ -108,7 +100,6 @@ function App() {
               <Route path="/manager/dashboard" element={<ManagerRoute><ManagerDashboard /></ManagerRoute>} />
               <Route path="/manager/loan/:id" element={<ManagerRoute><ManagerLoanDetail /></ManagerRoute>} />
             </Routes>
-            <ChatBot />
           </div>
         </AdminAuthProvider>
       </AuthProvider>

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Input from '../components/Input';
 import OTPInput from '../components/OTPInput';
 import API from '../api';
-import { UserPlus, ArrowRight, ShieldCheck, Mail, Lock, CheckCircle } from 'lucide-react';
+import { UserPlus, ArrowRight, ShieldCheck, Lock, CheckCircle } from 'lucide-react';
 
 const RegisterPage = () => {
     const navigate = useNavigate();

@@ -4,7 +4,7 @@ import Input from '../components/Input';
 import OTPInput from '../components/OTPInput';
 import { useAuth } from '../context/AuthContext';
 import API from '../api';
-import { LogIn, Mail, KeyRound, ArrowRight, CheckCircle } from 'lucide-react';
+import { LogIn, Mail, KeyRound } from 'lucide-react';
 
 const LoginPage = () => {
     const navigate = useNavigate();

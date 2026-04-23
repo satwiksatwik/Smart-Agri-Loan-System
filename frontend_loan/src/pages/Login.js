@@ -15,7 +15,7 @@ function Login() {
         password
       });
 
-      localStorage.setItem("token", res.data.token);
+      sessionStorage.setItem("token", res.data.token);
       navigate("/dashboard");
 
     } catch (error) {

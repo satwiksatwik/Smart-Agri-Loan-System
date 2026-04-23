@@ -7,7 +7,6 @@ import {
     User,
     IndianRupee,
     Map,
-    FileText,
     Tractor,
     Landmark,
     UploadCloud,
@@ -19,7 +18,7 @@ const LoanApplication = () => {
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
-    const [isFirstTime, setIsFirstTime] = useState(true);
+
     const [checkingLoans, setCheckingLoans] = useState(true);
     const [maxLimitReached, setMaxLimitReached] = useState(false);
     const [overdueWarning, setOverdueWarning] = useState("");
@@ -71,7 +70,7 @@ const LoanApplication = () => {
                     userDocs.aadhaar &&
                     userDocs.pan &&
                     userDocs.photo;
-                setIsFirstTime(!hasdocs);
+
 
                 const loansRes = await API.get("/loan/my-loans");
                 const activeLoans = loansRes.data.filter(l => !["Completed", "Rejected", "COMPLETED", "REJECTED"].includes(l.status));
@@ -86,7 +85,7 @@ const LoanApplication = () => {
                 }
 
             } catch {
-                setIsFirstTime(true);
+
             } finally {
                 setCheckingLoans(false);
             }

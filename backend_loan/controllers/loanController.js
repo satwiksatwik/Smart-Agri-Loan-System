@@ -100,7 +100,7 @@ const applyForLoan = async (req, res) => {
             } else if (hasDoc(field)) {
                 newDocs[field] = currentDocs[field];
             } else {
-                if (!hasStoredDocs) {
+                if (!hasStoredDocs && field !== "soilHealthCard") {
                     await session.abortTransaction();
                     session.endSession();
                     return res.status(400).json({

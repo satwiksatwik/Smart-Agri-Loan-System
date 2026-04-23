@@ -59,7 +59,6 @@ app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/manager", require("./routes/managerRoutes"));
 app.use("/api/emi", require("./routes/emiRoutes"));
 app.use("/api/audit", require("./routes/auditRoutes"));
-app.use("/api/chatbot", require("./routes/chatbotRoutes"));
 
 // ================= ERROR HANDLER =================
 app.use(errorHandler);
